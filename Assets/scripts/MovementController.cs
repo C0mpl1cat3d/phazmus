@@ -5,6 +5,7 @@ using System.Linq;
 
 public class MovementController : MonoBehaviour
 {
+    public GameObject missilePrefab;
     public List<GameObject> hexagonObjects = new List<GameObject>();
     public GameObject player;
     private bool wasClicked = false;
@@ -20,19 +21,23 @@ public class MovementController : MonoBehaviour
         {
             if (Camera.main != null && wasClicked == false)
             {
-                RaycastHit2D[] hits = Physics2D.LinecastAll((Vector2)Camera.main.ScreenToWorldPoint(Input.mousePosition), player.transform.position);
-                foreach (RaycastHit2D hit in hits)
-                {
-                    if (hit.collider != null && hit.collider.CompareTag("hexagon"))
-                    {
-                        if (!hexagonObjects.Contains(hit.collider.gameObject))
-                        {
-                            hexagonObjects.Add(hit.collider.gameObject);
-                        }
-                    }
-                }
                 wasClicked = true;
-                StartCoroutine(movement());
+                StartCoroutine(movement(player));
+            }
+            else if(wasClicked)
+            {
+                wasClicked = false;
+                hexagonObjects.Clear();
+                Debug.Log("Cleared the array");
+            }
+        }
+        else if (Input.GetMouseButtonDown(1))
+        {
+            if (Camera.main != null && wasClicked == false)
+            {
+                GameObject missile = Instantiate(missilePrefab, player.transform.position, Quaternion.identity);
+                wasClicked = true;
+                StartCoroutine(movement(missile));
             }
             else if(wasClicked)
             {
@@ -43,21 +48,37 @@ public class MovementController : MonoBehaviour
         }
     }
 
-    private List<GameObject> order()
+    private List<GameObject> rayCast(GameObject type)
     {
+        RaycastHit2D[] hits = Physics2D.LinecastAll((Vector2)Camera.main.ScreenToWorldPoint(Input.mousePosition), type.transform.position);
+        foreach (RaycastHit2D hit in hits)
+        {
+            if (hit.collider != null && hit.collider.CompareTag("hexagon"))
+            {
+                if (!hexagonObjects.Contains(hit.collider.gameObject))
+                {
+                    hexagonObjects.Add(hit.collider.gameObject);
+                }
+            }
+        }
         return hexagonObjects = hexagonObjects
-            .OrderBy(go => Vector2.Distance(go.transform.position, player.transform.position)).ToList();
+            .OrderBy(go => Vector2.Distance(go.transform.position, type.transform.position)).ToList();
     }
     
-    IEnumerator movement()
+    IEnumerator movement(GameObject type)
     {
-        order();
+        rayCast(type);
         hexagonObjects.RemoveAt(0);
 
         for (int i = 0; i < hexagonObjects.Count; i++)
         {
-            player.transform.position = hexagonObjects[i].transform.position;
+            type.transform.position = hexagonObjects[i].transform.position;
             yield return new WaitForSeconds(0.2f);
+        }
+
+        if (type.name != "Player")
+        {
+            Destroy(type);
         }
     }
 }
