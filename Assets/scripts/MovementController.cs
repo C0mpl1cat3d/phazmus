@@ -1,59 +1,63 @@
+using System.Collections;
 using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 public class MovementController : MonoBehaviour
 {
-    public Camera camera;
-    GameObject player;
-    public float speed = 1f;
-    public Vector2 destination;
-    private Rigidbody2D rb;
-    private bool isMoving = false;
+    public List<GameObject> hexagonObjects = new List<GameObject>();
+    public GameObject player;
+    private bool wasClicked = false;
 
     void Start()
     {
-    player = GameObject.Find("Player"); 
-    rb = player.GetComponent<Rigidbody2D>();
+        player = GameObject.Find("Player");
     }
 
     void Update()
     {
         if (Input.GetMouseButtonDown(0))
         {
-            Vector3 mouse = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 10);
-            RaycastHit2D hit = Physics2D.Raycast(camera.ScreenToWorldPoint(mouse), mouse);
-            if (hit.collider != null && isMoving == false)
+            if (Camera.main != null && wasClicked == false)
             {
-                Debug.Log(hit.transform.position);
-                destination = hit.transform.position;
-
-                Vector2 direction = destination - (Vector2)player.transform.position;
-                direction.Normalize();
-
-
-                // Calculate the angle of the direction vector
-                float angle = Mathf.Atan2(direction.y, direction.x);
-
-                float index = angle / (Mathf.PI / 3);
-
-                index = Mathf.Round(index);
-                angle = index * (Mathf.PI / 3);
-                direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                
-                rb.AddForce(direction * speed);
-                isMoving = true;
+                RaycastHit2D[] hits = Physics2D.LinecastAll((Vector2)Camera.main.ScreenToWorldPoint(Input.mousePosition), player.transform.position);
+                foreach (RaycastHit2D hit in hits)
+                {
+                    if (hit.collider != null && hit.collider.CompareTag("hexagon"))
+                    {
+                        if (!hexagonObjects.Contains(hit.collider.gameObject))
+                        {
+                            hexagonObjects.Add(hit.collider.gameObject);
+                        }
+                    }
+                }
+                wasClicked = true;
+                StartCoroutine(movement());
             }
-            else if(isMoving == true)
+            else if(wasClicked)
             {
-                rb.velocity = Vector2.zero;
-                isMoving = false;
+                wasClicked = false;
+                hexagonObjects.Clear();
+                Debug.Log("Cleared the array");
             }
+        }
+    }
 
-            void test()
-            {
-                Debug.Log("test");
-            }
+    private List<GameObject> order()
+    {
+        return hexagonObjects = hexagonObjects
+            .OrderBy(go => Vector2.Distance(go.transform.position, player.transform.position)).ToList();
+    }
+    
+    IEnumerator movement()
+    {
+        order();
+        hexagonObjects.RemoveAt(0);
 
-
+        for (int i = 0; i < hexagonObjects.Count; i++)
+        {
+            player.transform.position = hexagonObjects[i].transform.position;
+            yield return new WaitForSeconds(0.2f);
         }
     }
 }
